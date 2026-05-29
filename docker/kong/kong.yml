@@ -3,6 +3,14 @@ _format_version: "3.0"
 services:
   - name: games-service
     url: http://games:4001
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 120
+          policy: local
+          hide_client_headers: false
+          error_code: 429
+          error_message: "Rate limit exceeded. Try again in a moment."
     routes:
       - name: games-routes
         paths:
@@ -11,6 +19,14 @@ services:
 
   - name: wallets-service
     url: http://wallets:4002
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 60
+          policy: local
+          hide_client_headers: false
+          error_code: 429
+          error_message: "Rate limit exceeded. Try again in a moment."
     routes:
       - name: wallets-routes
         paths:
