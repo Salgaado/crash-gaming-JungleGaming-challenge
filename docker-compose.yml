@@ -12,7 +12,7 @@ services:
       POSTGRES_DB: postgres
       POSTGRES_EXTRA_DATABASES: games,wallets
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
       - ./docker/postgres/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin"]
@@ -54,7 +54,7 @@ services:
     volumes:
       - ./docker/keycloak:/opt/keycloak/data/import:ro
     healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q '200'"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
       interval: 10s
       timeout: 5s
       retries: 15
@@ -107,11 +107,11 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:4001/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4001/health || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 15s
+      retries: 15
+      start_period: 40s
 
   # ---------------------------------------------------------------------------
   # Wallets Service
@@ -130,23 +130,31 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:4002/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4002/health || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 15s
+      retries: 15
+      start_period: 40s
 
   # ---------------------------------------------------------------------------
-  # Frontend (placeholder — candidate implements)
   # ---------------------------------------------------------------------------
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   ports:
-  #     - "3000:3000"
-  #   depends_on:
-  #     - kong
+  # Frontend (Next.js)
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_WS_URL: http://localhost:4001
+      NEXT_PUBLIC_KEYCLOAK_URL: http://localhost:8080/realms/crash-game
+    depends_on:
+      kong:
+        condition: service_healthy
+      games:
+        condition: service_healthy
 
 volumes:
   postgres_data:
